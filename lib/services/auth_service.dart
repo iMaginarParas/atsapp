@@ -29,25 +29,20 @@ class AuthService {
   }
 
   Future<AuthResponse> signInWithGoogle() async {
-    // 1. Initialize GoogleSignIn with scopes
-    const webClientId = 'YOUR_WEB_CLIENT_ID'; // To be replaced by the user if needed, or fetched from Supabase
+    const webClientId = 'YOUR_WEB_CLIENT_ID'; 
     
-    // Fallback: If you are using Supabase, you can set the web client ID from your Google Cloud Console
-    // However, if we don't have it, we just initialize. Note: webClientId is required for idToken.
-    final GoogleSignIn googleSignIn = GoogleSignIn(
-      // webClientId: webClientId,
+    // 1. Initialize
+    await GoogleSignIn.instance.initialize(
+      // clientId: webClientId,
     );
     
     // 2. Trigger the native Google Sign-In flow
-    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-    if (googleUser == null) {
-      throw 'Google Sign-In canceled';
-    }
+    final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
 
     // 3. Obtain the auth details
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-    final String? accessToken = googleAuth.accessToken;
-    final String? idToken = googleAuth.idToken;
+    final String? idToken = googleUser.authentication.idToken;
+    final authz = await googleUser.authorizationClient.authorizeScopes(['email', 'profile']);
+    final String? accessToken = authz.accessToken;
 
     if (idToken == null || accessToken == null) {
       throw 'Missing Google Auth Tokens';
