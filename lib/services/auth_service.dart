@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -27,10 +28,36 @@ class AuthService {
     return await _supabase.auth.signUp(email: email, password: password);
   }
 
-  Future<void> signInWithGoogle() async {
-    await _supabase.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'atspro://login-callback/',
+  Future<AuthResponse> signInWithGoogle() async {
+    // 1. Initialize GoogleSignIn with scopes
+    const webClientId = 'YOUR_WEB_CLIENT_ID'; // To be replaced by the user if needed, or fetched from Supabase
+    
+    // Fallback: If you are using Supabase, you can set the web client ID from your Google Cloud Console
+    // However, if we don't have it, we just initialize. Note: webClientId is required for idToken.
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      // webClientId: webClientId,
+    );
+    
+    // 2. Trigger the native Google Sign-In flow
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw 'Google Sign-In canceled';
+    }
+
+    // 3. Obtain the auth details
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final String? accessToken = googleAuth.accessToken;
+    final String? idToken = googleAuth.idToken;
+
+    if (idToken == null || accessToken == null) {
+      throw 'Missing Google Auth Tokens';
+    }
+
+    // 4. Sign in to Supabase using the Google ID Token
+    return await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
     );
   }
 
