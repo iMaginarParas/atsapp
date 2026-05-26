@@ -27,6 +27,13 @@ class AuthService {
     return await _supabase.auth.signUp(email: email, password: password);
   }
 
+  Future<void> signInWithGoogle() async {
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'atspro://login-callback/',
+    );
+  }
+
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }

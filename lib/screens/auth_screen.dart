@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 
@@ -20,8 +22,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  late final StreamSubscription<AuthState> _authStateSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      if (session != null && mounted) {
+        context.go('/dashboard');
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _authStateSubscription.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -166,6 +182,48 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         child: _isLoading 
                           ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : Text(_isLogin ? 'Sign In' : 'Create Account'),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Divider
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: AppTheme.slate200)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text('OR', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.slate400, fontWeight: FontWeight.bold)),
+                          ),
+                          Expanded(child: Divider(color: AppTheme.slate200)),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Google Sign In Button
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await ref.read(authServiceProvider).signInWithGoogle();
+                            // Note: Web flow will handle redirection automatically.
+                            // We don't go('/dashboard') here because OAuth handles it asynchronously via deep links.
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.rose600));
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                        icon: const Icon(LucideIcons.chrome, size: 20),
+                        label: const Text('Continue with Google'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.slate900,
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: AppTheme.slate200),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
                       ),
                     ],
                   ),
